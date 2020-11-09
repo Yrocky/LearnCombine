@@ -222,4 +222,13 @@ example(of: "Future") {
         .store(in: &subscriptions)
 }
 
-
+example(of: "Subject") {
+    /// Subject 作为一个中间人角色，使得非Combine代码可以拥有Publisher的能力
+    /// Subject有两个具体的子类：PassthroughSubject、
+    
+    enum MyError: Error {
+        case one
+    }
+    
+    
+}
