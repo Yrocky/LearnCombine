@@ -14,58 +14,60 @@ var subscriptions = Set<AnyCancellable>()
 
 example(of: "Normal-Notification") {
     
-    /// 常规的使用通知
-    /// 1.在对特定通知感兴趣的地方添加观察者
+    /*:
+    ## 常规的使用通知
+     1.在对特定通知感兴趣的地方添加观察者
+ */
     let observer = center
         .addObserver(forName: noti, object: nil, queue: nil) { notifaction in
         print("Normal receive notification:",notifaction)
     }
     
-    /// 2.在某些时刻发送通知
+    //: 2.在某些时刻发送通知
     center.post(name: noti, object: nil)
     
-    /// 3.合理的对通知进行添加和移除
+    //: 3.合理的对通知进行添加和移除
     center.removeObserver(observer)
 }
 
 example(of: "Combine-Notification") {
     
-    /// 使用Combine的方式来发通知
-    /// 1.通过通知中心、通知获取一个Publisher
+    //: ## 使用Combine的方式来发通知
+    //: 1.通过通知中心、通知获取一个Publisher
     let publisher = center.publisher(for: noti)
     
-    /// 2.为这个Publisher添加一个订阅者，以及收到消息之后的回调
+    //: 2.为这个Publisher添加一个订阅者，以及收到消息之后的回调
     let subscription = publisher.sink { notification in
         print("Combine receive notification:", notification)
     }
     
-    /// 3.和往常一样，通知中心发送通知
+    //: 3.和往常一样，通知中心发送通知
     center.post(name: noti, object: nil)
     
-    /// 4.订阅者取消订阅
+    //: 4.订阅者取消订阅
     subscription.cancel()
 }
 
 example(of: "sink") {
     
-    /// 通过Just可以获得到一个原始数据的Publisher，Just是内置的一个Publisher
+    //: 通过Just可以获得到一个原始数据的Publisher，Just是内置的一个Publisher
     let just = Just("Hello world")
     
-    /// sink是框架内置的可以便利生成一个订阅者的方法
+    //: `sink`是框架内置的可以便利生成一个订阅者的方法
     just.sink(receiveCompletion: { _ in
         print("Just completion")
     }) {
         print("Just receive value:",$0)
     }
     
-    /// 任意一个Publisher都可以被一个或者多个订阅者订阅
+    //: 任意一个Publisher都可以被`一个`或者`多个`订阅者订阅
     just.sink { text in
         print("Just receive other vaue:\(text)")
     }
 }
 
 example(of: "assign(to:on:)") {
-    /// assign是框架内置的另一个便利生成订阅者的方法，他可以将数据和class的属性进行绑定
+    //: `assign`是框架内置的另一个便利生成订阅者的方法，他可以将数据和class的属性进行绑定
     class MyClass {
         var name: String = "" {
             /// 重写name的set方法，获取修改name时候的数据
@@ -77,10 +79,10 @@ example(of: "assign(to:on:)") {
     
     let myObj = MyClass()
     
-    /// 通过为数组提供的拓展，方便的生成一个Publisher
+    //: 通过为数组提供的拓展，方便的生成一个Publisher
     let publisher = ["rocky","yh"].publisher
     
-    /// 将publisher产生的数据绑定到myObj的name属性上
+    //: 将publisher产生的数据绑定到myObj的name属性上
     publisher.assign(to: \.name, on: myObj)
 }
 
@@ -224,11 +226,148 @@ example(of: "Future") {
 
 example(of: "Subject") {
     /// Subject 作为一个中间人角色，使得非Combine代码可以拥有Publisher的能力
-    /// Subject有两个具体的子类：PassthroughSubject、
+    /// Subject有两个具体的子类：PassthroughSubject、CurrentValueSubject
     
     enum MyError: Error {
-        case one
+        case test
     }
     
+    /// 创建一个Subscriber，用来接收String类型的数据
+    final class StringSubscriber: Subscriber {
+        /// 指明Input和Failure
+        typealias Input = String
+        typealias Failure = MyError
+        
+        /// 重写3个receive方法
+        func receive(subscription: Subscription) {
+            /// 在将一个Subscriber通过Publisher的`subscribe(_:)`方法产生联系之后，
+            /// 会在其方法内部调用，用来从Publisher发起请求元素，
+            /// 可以决定请求的限制：unlimit、max、none等，
+            /// 这个方法中必须要使用subscription发起request
+            subscription.request(.max(3))
+        }
+        func receive(_ input: String) -> Subscribers.Demand {
+            print("Receive vaule",input)
+            return .none
+        }
+        func receive(completion: Subscribers.Completion<MyError>) {
+            print("Receive Completion", completion)
+        }
+    }
     
+    let subscriber = StringSubscriber()
+    
+    let subject = PassthroughSubject<String, MyError>()
+    subject.subscribe(subscriber)
+    
+    let subscription = subject.sink { (comp) in
+        print("subject completion \(comp)")
+    } receiveValue: { (value) in
+        print("subject value \(value)")
+    }
+
+    subject.send("1111")
+    subject.send("2222")
+    subject.send("3333")
+    subject.send("4444")
+    subject.send("5555")
+    
+    /// 如果这里cancel了，下面的subject再send，subscriber也不会receive数据了
+    subscription.cancel()
+    subject.send("after cancel")
+    subject.send(completion: .finished)
+    
+    subject.send("after completion")
 }
+
+example(of: "Publisher&Subscriber") {
+    /// Subscriber和Publisher之间产生联系
+    /// 通过Publisher调用`subscribe(_:)`，传递一个Subscriber给到这个方法
+    /// 然后Publisher内部会调用Subscriber的`receive(subscription:)`方法
+    /// 传递一个Subscription实例，Subscriber可以设定这个Subscription实例，
+    /// 来决定Publisher发送数据的次数限制
+    /// 当用户产生了数据，Publisher会调用Subscriber的`receive(_:)`，
+    /// 需要注意的是，有可能是异步，然后根据该方法的返回值决定是都要产生一个新的Publisher，
+    /// 一旦Publisher停止发布，会调用Subscriber的`receive(completion:)`方法
+    /// 参数是一个Completion枚举，有可能是完成，也有可能有一个错误
+    ///
+    /// 原文
+    ///
+    /// You connect a subscriber to a publisher by calling the publisher’s subscribe(_:) method.
+    /// After making this call, the publisher invokes the subscriber’s receive(subscription:) method.
+    /// This gives the subscriber a Subscription instance,
+    /// which it uses to demand elements from the publisher, and to optionally cancel the subscription.
+    /// After the subscriber makes an initial demand,
+    /// the publisher calls receive(_:), possibly asynchronously, to deliver newly-published elements.
+    /// If the publisher stops publishing, it calls receive(completion:), using a parameter of type Subscribers.Completion to indicate whether publishing completes normally or with an error.
+}
+
+example(of: "Dynamically adjusting demand") {
+    
+    final class IntSubscriber: Subscriber {
+        typealias Input = Int
+        typealias Failure = Never
+        
+        func receive(subscription: Subscription) {
+            subscription.request(.max(2))
+        }
+        
+        /// 在前面我们知道，如果subscription在发送request的时候，设置了demand，
+        /// 比如这里是.max(2)，那么只要`receive(_:)`方法返回.none，就可以实现只接收2次数据，
+        /// 但是如果想要动态的来决定接收数据的次数：有1的时候增加2次、有3的时候增加3次
+        /// 但是如果不返回.none，设置的次数限制是无效的
+        func receive(_ input: Int) -> Subscribers.Demand {
+            print("value \(input)")
+            switch input {
+            case 1:
+                return .max(2)/// 在原有次数上增加2次
+            case 3:
+                return .max(1)/// 在原有次数上增加1次
+            default:
+                return .none/// 当前限制次数
+            }
+        }
+        
+        func receive(completion: Subscribers.Completion<Never>) {
+            print("completion")
+        }
+    }
+    
+    let mySubscriber = IntSubscriber()
+    
+    let subject = PassthroughSubject<Int, Never>()
+    /// 将创建的subscriber和publisher关联起来
+    subject.subscribe(mySubscriber)
+    
+    subject.send(1)
+    subject.send(2)
+    subject.send(1)
+    subject.send(3)
+    subject.send(4)
+    subject.send(5)
+    subject.send(6)
+    subject.send(7)
+    subject.send(8)
+    subject.send(9)
+    subject.send(10)
+    
+    /// Subscribers.Demand还是有点儿不理解
+}
+
+example(of: "对Subscriber隐藏Publisher的一些细节") {
+    /// 当一个Subscriber对发送数据的Publisher不感兴趣的时候，可以使用`AnyPublisher`
+    /// 这叫做类型擦除（Type erasure）
+    
+    let subject = PassthroughSubject<Int, Never>()
+    /// 使用`eraseToAnyPublisher`，将subject弱化角色，
+    let publisher = subject.eraseToAnyPublisher()
+    
+    publisher
+        .sink { print($0) }
+        .store(in: &subscriptions)
+    
+    subject.send(12)
+    /// publisher现在仅仅是一个Publisher类型的对象，并不具备PassthroughSubject特有的方法
+}
+
+//: [Next](@next)
