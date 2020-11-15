@@ -260,11 +260,11 @@ example(of: "Subject") {
     let subject = PassthroughSubject<String, MyError>()
     subject.subscribe(subscriber)
     
-    let subscription = subject.sink { (comp) in
-        print("subject completion \(comp)")
-    } receiveValue: { (value) in
-        print("subject value \(value)")
-    }
+//    let subscription = subject.sink { (comp) in
+//        print("subject completion \(comp)")
+//    } receiveValue: { (value) in
+//        print("subject value \(value)")
+//    }
 
     subject.send("1111")
     subject.send("2222")
@@ -273,7 +273,7 @@ example(of: "Subject") {
     subject.send("5555")
     
     /// 如果这里cancel了，下面的subject再send，subscriber也不会receive数据了
-    subscription.cancel()
+//    subscription.cancel()
     subject.send("after cancel")
     subject.send(completion: .finished)
     
