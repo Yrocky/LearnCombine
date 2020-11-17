@@ -15,11 +15,14 @@ public func example(of description: String, action: () -> Void) {
 print("hello")
 example(of: "Transforming operators") {
     /*:
-     在Combine中，操作符是除了Publisher和Subscriber之外，最重要的部分
+     在Combine中，操作符是除了`Publisher`和`Subscriber`之外，最重要的部分。
      对**来自Publisher的值**进行**操作**的方法称为`操作符`，
-     并且每一个操作符的结果都是返回一个新的Publisher，
-     操作符接收upstream，并对数据进行加工处理，然后将结果作为downstream交给下一个操作符
-     在加工处理的过程中有可能会产生错误，所以，交给下一个操作符的还可能是error
+     并且每一个操作符的结果都是返回一个`新的Publisher`，
+     操作符接收`upstream`，并对数据进行加工处理，
+     然后将结果作为`downstream`交给下一个操作符，
+     在加工处理的过程中有可能会产生错误，
+     所以，交给下一个操作符的还可能是error，
+     这个时候就需要使用`try-like`变种的操作符来处理对应的数据。
      */
 }
 
@@ -28,19 +31,23 @@ example(of: "collect()") {
     
     let array = ["a","b","c","d","e"]
     //: 前面我们知道了Combine为Array提供了便利创建Publisher的方法，
-    array.publisher
-//        .collect()
-        .sink { (value) in
-            print("receive \(value)")
-        }.store(in: &subscriptions)
+    array
+        .publisher
+        .sink { print("receive \($0)") }
+        .store(in: &subscriptions)
     
     /*:
-     但是这样只能让元素一个一个的输出，如果想让元素以一定个数成组输出就可以使用collect，
-     在成组中可以直接设置count，还可以使用一个enum来指定成组策略，
+     普通的但是这样只能让元素一个一个的输出，
+     如果想让元素以`一定个数成组`输出就可以使用collect。
+     在成组中可以直接设置`count`，让数据以一定的个数成组输出；
+     还可以使用一个`TimeGroupingStrategy`的enum来指定成组策略，
+     策略可以使按照`time`的，还可以是按照`timeOrCount`的。
      需要注意的是，通过collect操作符处理之后得到的数据类型将是一个Array
      */
-    array.publisher
+    array
+        .publisher
         .collect(2)
+        // 通过collect处理之后，传递的将不再是String，而是Array
         .sink { (value) in
             print("collect receive \(value)")
         }.store(in: &subscriptions)
@@ -56,8 +63,8 @@ example(of: "map()") {
         .store(in: &subscriptions)
     
     /*:
-     map操作符还支持使用keyPath来进行映射
-     对keyPath的映射最多支持3个
+     map操作符还支持使用`keyPath`来进行映射，
+     对keyPath的映射最多支持**3个**。
      */
     struct Roll {
         let die1: Int
@@ -101,10 +108,9 @@ let romanNumeralString_3 = try romanNumeral(from: 3)
 example(of: "tryMap()") {
     
     /*:
-     
      在映射数据的时候，总不可能一直返回有效数据，还有可能产生错误，
-     或者是map中的逻辑需要try-catch，比如打开文件、除法等等
-     这个时候可以使用tryMap，
+     或者是map中的逻辑需要try-catch，比如打开文件、除法等等，
+     这个时候可以使用`tryMap`。
      */
     Just(9)
         .tryMap { try romanNumeral(from: $0) }
@@ -131,10 +137,10 @@ example(of: "replaceNil(with:)") {
     
     /*:
      在前面的`map`中可以将对应的数据进行转化，有可能会转化失败（trymap），
-     也有可能本来的数据中就有空（nil、null等）数据，这个时候可以使用`replaceNil`
+     也有可能本来的数据中就有空（nil、null等）数据，这个时候可以使用`replaceNil`。
      
-     下面的例子中，如果不加`.eraseToAnyPublisher`，那么sink中输出的是Optional<String>
-     如果使用了`.eraseToAnyPublisher`，则会获得对应解包之后的数据：String
+     下面的例子中，如果不加`.eraseToAnyPublisher`，那么sink中输出的是`Optional<String>`，
+     如果使用了`.eraseToAnyPublisher`，则会获得对应解包之后的数据：`String`。
      
      ??和replaceNil有一个细微但是很重要的区别，
      通过? ?解包的数据仍然可以产生nil结果，但replaceNil并不会，
@@ -154,9 +160,10 @@ example(of: "replaceEmpty(with:)") {
     
     /*:
      如果一个publisher发送的消息中没有值，或者说是一个空值，
-     可以使用`replaceEmpty(with:)`来将其进行替换，或者说插入一个约定好的值
+     可以使用`replaceEmpty(with:)`来将其进行替换，或者说插入一个约定好的值。
      
-     最好解释的一个就是，通过map操作得到一个`Empty`类型的Publisher，它是没有值的
+     最好解释的一个就是，通过map操作得到一个`Empty`类型的Publisher，
+     因为它本身是没有值的，所以可以约定将其改为约定值。
      */
     
     let empty = Empty<Int, Never>(completeImmediately: true)
@@ -175,30 +182,34 @@ example(of: "replaceEmpty(with:)") {
         .store(in: &subscriptions)
     
     /*:
-     除了replaceNil、replaceEmpty之外，还有replaceError这个操作符，待学
+     除了`replaceNil`、`replaceEmpty`之外，还有`replaceError`这个操作符，
+     待学。
      */
 }
 
 example(of: "scan(_:_:)") {
     /*:
-     对增量的处理，简单理解就是，求1到100之间的数字的和，
-     每两个数相加之后都会作为一个值和之后的第三个数相加
-     在Combine中是使用`scan(_:_:)`来完成这个操作的
-     
+     对增量的处理，简单解释就是，求1到100之间的数字的和，
+     每两个数相加之后都会作为一个值和之后的第三个数相加。
+     在Combine中是使用`scan(_:_:)`来完成这个操作的。
      */
     
     [1,2,3,4,5,6,7,8,9]
         .publisher
         .eraseToAnyPublisher()
-        // scan有两个参数，第一个是初始值，第二个是一个block回调，用于对每个增量以及前面的值做处理
-        // $0就是之前的所有增量的和，$1是当前遍历到的值
+        /*:
+         scan有两个参数，
+         第一个是初始值，
+         第二个是一个block回调，用于对每个增量以及前面的值做处理。
+         $0就是之前的所有增量的和，$1是当前遍历到的值
+         */
         .scan(0) { $0 + $1 }
         .sink(receiveCompletion: {print("completion \($0)")},
               receiveValue: {print("value \($0)")})
         .store(in: &subscriptions)
     
     /*:
-     scan操作符也是可能返回错误的，还有一个变形：tryScan
+     scan操作符也是可能返回错误的，还有一个变形：`tryScan`
      */
 //    Just([1,2,3])
 //    .eraseToAnyPublisher()

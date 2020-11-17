@@ -4,5 +4,6 @@
         <page name='Basic'/>
         <page name='TransformingOperators'/>
         <page name='FilteringOperators'/>
+        <page name='CombiningOperators'/>
     </pages>
 </playground>

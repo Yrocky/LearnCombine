@@ -32,8 +32,8 @@ example(of: "removeDuplicates") {
      `removeDuplicates`操作符会将publisher中重复的数据进行移除
      这里的重复是指和前一个数据重复，
      比如[1,1,2,1]第二个1就是重复的，但是第三个1并不是重复的，
-     经过`removeDuplicates`处理之后的结果是：[1,2,1]
-     这样的操作符可以避免下游对相同的数据重复计算
+     经过`removeDuplicates`处理之后的结果是：[1,2,1]，
+     这样的操作符可以避免下游对相同的数据进行重复计算。
      */
     [1,1,2,3,1,4,5,5,1,6,1]
         .publisher
@@ -75,10 +75,11 @@ example(of: "first(where:)") {
      
      通过`cancel`来不正常的结束数据接收
      */
+    
     (1...100)
         .publisher
         .print()
-        .first(where: {$0%3 == 0})
+        .first(where: {$0%3 == 0})// 取余操作，找第一个3的倍数的数据
         .sink(receiveCompletion: {print("completion \($0)")},
               receiveValue: {print("value \($0)")})
         .store(in: &subscriptions)
@@ -99,9 +100,11 @@ example(of: "first(where:)") {
     publisher.send(6)
     publisher.send(9)
     
-    // 由于first(where:)是前项获取的，并不需要知道所有的消息，
-    // 所以，只要数据满足了条件，就会被发布出去，并且之后的数据也不会接收，
-    // 这一点和下面的`last(where:)`并不一样
+    /*:
+     由于first(where:)是前项获取的，并不需要所有的数据，
+     所以，只要数据满足了条件，就会被发布出去，并且也不会接收之后的数据，
+     这一点和下面的`last(where:)`并不一样
+     */
 }
 
 example(of: "last(where:)") {
@@ -119,7 +122,7 @@ example(of: "last(where:)") {
         .store(in: &subscriptions)
     
     /*
-     上面演示的是一次性将所有的数据都发布完成，那么如果是依次发布呢
+     上面演示的是一次性将所有的数据都发布完成，那么如果是依次发布呢？
      */
     
     let publisher = PassthroughSubject<Int, Never>()
@@ -137,35 +140,45 @@ example(of: "last(where:)") {
     publisher.send(4)
     publisher.send(5)
     
-    // 执行上面的代码，发现并不会得到对应的值（4），这是因为没有收到`finish`消息
-    // 如果publisher发送了一个.finished之后，就会得到对应的值
+    /*:
+     执行上面的代码，发现并不会得到对应的值（4），这是因为没有收到`finish`消息，
+     后面还有可能存在最后一个符合条件的值，
+     如果publisher发送了一个.finished之后，就会得到对应的值。
+     可以看出来，`last(where:)`这个操作符需要publisher执行了`.finished`才有效，极度依赖后者。
+     */
     publisher.send(completion: .finished)
 }
 
 example(of: "drop(while:)") {
     /*:
      `drop(while:)`操作符会不发布任何元素，直到block中返回false为止
-     也就是说，当得到了第一个不满足该条件的元素，才开始发布之后的元素
+     也就是说，当得到了第一个不满足该条件的元素，才开始发布之后的元素，
+     类似于`do-while`，这里的do是一个drop操作，
+     在while的判断为true之前所有的元素都要drop掉
      
      这个操作符和.max()有关系，比如，前面两个元素：1、2，使用print()打印出来如下
      
+     ```
      receive value: (1)
      request max: (1) (synchronous)
      receive value: (2)
      request max: (1) (synchronous)
+     ```
      
      但是在4之后的元素，打印却是：
+     ```
      receive value: (4)
      receive value: (5)
      ...
+     ```
      
-     也就是说，在满足drop条件的时候，同步请求了一次`.max(1)`，
+     也就是说，在满足drop条件的时候，同步(synchronous)请求了一次`.max(1)`，
      而在第一次不满足之后，就不会发送请求了
      
      */
     [1,2,3,2,3,4,5,2,3,4,8,9,4]
         .publisher
-        .print()
+//        .print()
         .drop(while: { $0 != 4 })
         .sink(receiveCompletion: {print("completion \($0)")},
               receiveValue: {print("value \($0)")})
@@ -227,5 +240,55 @@ example(of: "prefix(_:)") {
               receiveValue: {print("value \($0)")})
         .store(in: &subscriptions)
 }
+
+example(of: "prefix(while:)") {
+    /*:
+     `prefix(while:)`是另一种用于限制发布元素的指令，
+     类似于`do-while`，publisher会依次发布元素，直到while的判断语句为True，跳出循环为止。
+     */
+    (1...10)
+        .publisher
+        .prefix(while: { $0 != 4})
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+}
+
+example(of: "prefix(untilOutputFrom:)") {
+    /*:
+     使用`prefix(untilOutputFrom:)`，可以让当前publisher依赖另一个publisher，
+     和`drop(untilOutputFrom:)`不同的是，当前publisher会一直产生数据，并进行发布，
+     直到依赖的publisher开始产生数据传递才停止
+     */
+    
+    let isReady = PassthroughSubject<Int, Never>()
+    let publisher = PassthroughSubject<Int, Never>()
+    
+    publisher
+        .print()
+        .prefix(untilOutputFrom: isReady)
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+    
+    publisher.send(1)
+    publisher.send(2)
+    publisher.send(3)
+    
+    /*:
+     publisher会依次发布`isReady`开始发布数据之前的所有数据（1、2、3），
+     但是这之后的数据将会被丢弃，通过`cancel`来结束该publisher的状态
+     */
+    isReady.send(100)
+    
+    publisher.send(4)
+    publisher.send(5)
+}
+
+/*:
+ 从上面可以看出来，`first`和`last`是两个对立的操作符，`drop`和`prefix`也是两个对立的操作符，
+ 同样的他们都有相同的变种。
+ */
+
 
 //: [Next](@next)
