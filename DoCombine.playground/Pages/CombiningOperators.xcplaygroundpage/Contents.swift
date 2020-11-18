@@ -413,7 +413,7 @@ example(of: "switchToLatest() 2") {
 
      作为可以解释的通的一点是：
      如果对`Publisher<Publisher<Int, Error>, Never>`类型调用`switchToLatest()`操作符后，
-     Combine会将其变成`Publisher<Int, Error>`类型，
+     Combine会将其进行`类型擦除`，对下游订阅者来说，就是`Publisher<Int, Error>`类型，
      因此下游订阅者只会关心收到的Int类型的数据，
      那么如果切换了一个`Publisher<String, Error>`的源，
      由于swift是类型安全的，Combine并不知道要将其变为何种类型，直接抛出编译错误。
@@ -422,15 +422,52 @@ example(of: "switchToLatest() 2") {
     
 }
 
+example(of: "switchToLatest() 3") {
+    /*:
+     上面说了针对多种数据类型的Publisher不可以使用`switchToLatest()`进行切换，
+     从其方法定义入手，看下Combine是如何定义它的：
+     
+     ```
+     func switchToLatest() -> Publishers.SwitchToLatest<A.Output, Publishers.Merge8<A, B, C, D, E, F, G, H>>
+     ```
+     会发现这个操作符内部其实是通过`Merge`来实现的，并且最多支持8个Publisher。
+     
+     我们知道在Combine中，是使用`Publishers命名空间`下，具体的结构体或者类来抽象操作符的，
+     `SwitchToLatest`就是对该操作符的抽象，它的声明、泛型约束如下：
+     
+     ```
+     // 省去了Failure的泛型约束
+     struct SwitchToLatest<P, Upstream>
+     where
+     P : Publisher, P == Upstream.Output, Upstream : Publisher
+     ```
+     
+     在这里，P必须要和Upstream的Output类型一致，
+     并且要和Merge8中的所有Publisher的Output类型一致。
+     放到`switchToLatest()`操作符中就是，所有要切换的Publisher的Output类型都要一致。
+     
+     */
+}
 example(of: "combineLatest(_:)") {
     
     /*:
      `combineLatest(_:)`操作符可以将多个publisher的最新数据进行整合，
      然后将组合好的数据进行分发，经过这样的操作，就可以保证所有分发者的数据都是最新的。
      
-     整合后的数据会默认会被当做元组进行分发，当然也可以选择进行对应的处理
+     整合后的数据会默认会被当做元组进行分发，这一点上不同于`switchToLatest()`操作符，
+     因为后者只允许同Output类型的Publisher进行组合处理。
      */
     
+    /*:
+     由于`(1...5).publisher`在`.combineLatest(_:)`操作符之前就已经完成了所有数据的分发，
+     其最后一个数据为`5`，因此组合上`["a","b","c"].publisher`的数据分发，最终的打印log如下：
+     
+     ```
+     value (5, "a")
+     value (5, "b")
+     value (5, "c")
+     ```
+     */
     (1...5)
         .publisher
         .combineLatest(["a","b","c"].publisher)
@@ -542,11 +579,149 @@ example(of: "combineLatest(_:)") {
      */
 }
 
-example(of: "") {
+example(of: "merge(with:)") {
     
     /*:
+     上面提到了Merge这个结构体抽象的操作符，其中一个就是`merge(with:)`，
+     这个操作符允许合并另一个publisher的数据进行分发
+     */
+    let aPublisher = PassthroughSubject<Int, Never>()
+    let bPublisher = PassthroughSubject<Int, Never>()
+    
+    aPublisher
+        .merge(with: bPublisher)
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+    
+    /*:
+     aPublisher通过合并bPublisher，
+     作为aPublisher的订阅者就可以收到两者先后分发的数据，
+     相当于将bPublisher要分发的数据插入到aPublisher中。
      
+     相关控制台的输出为：
+     
+     ```
+     value 1    // from aPublisher
+     value 2    // from aPublisher
+     value 33   // from bPublisher
+     value 4    // from aPublisher
+     value 5    // from aPublisher
+     ```
+     */
+    aPublisher.send(1)
+    aPublisher.send(2)
+    
+    bPublisher.send(33)
+    
+    aPublisher.send(4)
+    aPublisher.send(5)
+    
+    /*:
+     `merge(with:)`还有一系列的变种操作符，用于支持多个Publisher，目前最多支持8个。
+     */
+//    let cPublisher = PassthroughSubject<Int, Never>()
+//    cPublisher
+//    .merge(with: <#T##Publisher#>, <#T##c: Publisher##Publisher#>, <#T##d: Publisher##Publisher#>, <#T##e: Publisher##Publisher#>, <#T##f: Publisher##Publisher#>, <#T##g: Publisher##Publisher#>, <#T##h: Publisher##Publisher#>)
+}
+
+example(of: "zip(_:)") {
+    /*:
+     和`combineLatest(_:)`操作符一样，
+     `zip(_:)`操作符也支持对不同Output类型的Publisher进行组合操作，
+     并且都是使用元组组合后进行分发。
+     所不同的是，`zip`会将要组合的Publisher进行一对一的组合，
+     而不是将他们最新的数据进行组合。
+     
+     zip本意是指拉链，压缩是另一种解释，用拉链来解释这个操作符会更直观一些，
+     两个publisher分发的数据一一对应，就相当于拉链中两个相互咬合的齿。
      */
     
+    let aPublisher = PassthroughSubject<Int, Never>()
+    let bPublisher = PassthroughSubject<String, Never>()
+    
+    aPublisher
+        .zip(bPublisher)
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+    
+    aPublisher.send(1)
+    aPublisher.send(2)
+    
+    bPublisher.send("three")
+    bPublisher.send("four")
+    
+    /*:
+     到目前为止，`aPublisher`和`bPublisher`都分发了2个数据：1和2、three和four，
+     对应的控制台输出为：
+     
+     ```
+     value (1, "three")
+     value (2, "four")
+     ```
+     
+     可以看出来，经过zip处理过后的数据以`aPublisher`和`bPublisher`先后分发的顺序成组交给了订阅者。
+     */
+    aPublisher.send(5)
+    aPublisher.send(6)
+    aPublisher.send(7)
+    
+    /*:
+     接着再让`aPublisher`分发数据，而`bPublisher`不分发，
+     会发现到这里，控制台并没有多余的输出。
+     这很好解释，因为`bPublisher`并没有最新的数据要分发，
+     而zip是需要将组合中所有Publisher的数据进行一一对应进行分发。
+     */
+    
+    bPublisher.send("eight")
+    bPublisher.send("nine")
+    
+    /*:
+     接着让`bPublisher`开始分发数据，这个时候控制台对应的输出为：
+     
+     ```
+     value (1, "three")
+     value (2, "four")
+     value (5, "eight")
+     value (6, "nine")
+     ```
+     这时，两个Publisher的数据别按照预期的结果进行了分发。
+     */
 }
+
+example(of: "zip(_:) 2") {
+    /*:
+     `zip(_:)`支持对组合的Publisher进行数据的转换，
+     对应的变种操作符为：`zip(_:, transform:)`，
+     在`transform`的block回调中可以对组合的数据进行处理。
+     
+     不仅可以对数据进行处理，还可以将数据进行类型转换，
+     由于通过zip处理的数据会以元组进行分发，所以这里相当于修改了元组的数据类型，并没有修改元组的长度。
+     */
+    
+    let aPublisher = PassthroughSubject<Int, Never>()
+    let bPublisher = PassthroughSubject<String, Never>()
+    
+    aPublisher
+        //: 这里可以将aPublisher分发的Int类型修改为String类型
+        .zip(bPublisher, { (a, b) -> (String, String) in
+            return ("\(a)", "transformed: \(b)")
+        })
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+    
+    aPublisher.send(1)
+    aPublisher.send(2)
+    
+    bPublisher.send("three")
+    bPublisher.send("four")
+    
+    /*:
+     除了增加了transform的变种，zip还有对于Publisher数量的变种，
+     不过最多支持2个，着实有点儿寒碜。
+     */
+}
+
 //: [Next](@next)
