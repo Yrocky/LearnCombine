@@ -182,19 +182,23 @@ example(of: "Custom Subscriber") {
 }
 
 example(of: "Future") {
-    
-    /// Future是在Publishers命名空间中定义的
-    /// 他可以使用于异步调用中，在异步中产生数据、完成
+    return
+    /*:
+     `Future`是在Publishers命名空间中定义的，
+     他可以使用于异步调用中，在异步中产生数据、完成
+     */
     
     func futureIncrement(
         integer: Int,
         afterDelay delay: TimeInterval) -> Future<Int, Never> {
         
-        /// Future本身也是遵守Publisher协议的
-        /// Future内置了一个Promise类型的函数，这个函数接收的是Result类型的
-        /// Promise的定义：`typealias Promise = (Result<Output, Failure>) -> Void`
-        /// 而Result本身是swift中抽象结果的枚举，包括success和failure两个case
-        /// Future的初始化也很简单，使用了一个尾闭包来创建即可，闭包就是上面提到的Promise函数
+        /*:
+         Future本身也是遵守Publisher协议的，
+         Future内置了一个`Promise类型`的函数，这个函数接收的是`Result类型`的。
+         Promise的定义：`typealias Promise = (Result<Output, Failure>) -> Void`，
+         而Result本身是swift中抽象结果的枚举，包括`success`和`failure`两个case，
+         Future的初始化也很简单，使用了一个尾闭包来创建即可，闭包就是上面提到的Promise函数。
+         */
         Future<Int, Never> { promise in
             /// 闭包内部是创建一个延时异步线程的回调
             DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
@@ -240,25 +244,27 @@ example(of: "Subject") {
         
         /// 重写3个receive方法
         func receive(subscription: Subscription) {
-            /// 在将一个Subscriber通过Publisher的`subscribe(_:)`方法产生联系之后，
-            /// 会在其方法内部调用，用来从Publisher发起请求元素，
-            /// 可以决定请求的限制：unlimit、max、none等，
-            /// 这个方法中必须要使用subscription发起request
+            /*:
+             在将一个Subscriber通过Publisher的`subscribe(_:)`方法产生联系之后，
+             会在其方法内部调用，用来从Publisher发起请求元素，
+             可以决定请求的限制：`unlimit`、`max`、`none`等，
+             这个方法中必须要使用subscription发起request
+             */
             subscription.request(.max(3))
         }
         func receive(_ input: String) -> Subscribers.Demand {
-            print("Receive vaule",input)
+            print("vaule",input)
             return .none
         }
         func receive(completion: Subscribers.Completion<MyError>) {
-            print("Receive Completion", completion)
+            print("Completion", completion)
         }
     }
     
     let subscriber = StringSubscriber()
     
     let subject = PassthroughSubject<String, MyError>()
-    subject.subscribe(subscriber)
+    subject.print().subscribe(subscriber)
     
 //    let subscription = subject.sink { (comp) in
 //        print("subject completion \(comp)")
@@ -281,25 +287,30 @@ example(of: "Subject") {
 }
 
 example(of: "Publisher&Subscriber") {
-    /// Subscriber和Publisher之间产生联系
-    /// 通过Publisher调用`subscribe(_:)`，传递一个Subscriber给到这个方法
-    /// 然后Publisher内部会调用Subscriber的`receive(subscription:)`方法
-    /// 传递一个Subscription实例，Subscriber可以设定这个Subscription实例，
-    /// 来决定Publisher发送数据的次数限制
-    /// 当用户产生了数据，Publisher会调用Subscriber的`receive(_:)`，
-    /// 需要注意的是，有可能是异步，然后根据该方法的返回值决定是都要产生一个新的Publisher，
-    /// 一旦Publisher停止发布，会调用Subscriber的`receive(completion:)`方法
-    /// 参数是一个Completion枚举，有可能是完成，也有可能有一个错误
-    ///
-    /// 原文
-    ///
-    /// You connect a subscriber to a publisher by calling the publisher’s subscribe(_:) method.
-    /// After making this call, the publisher invokes the subscriber’s receive(subscription:) method.
-    /// This gives the subscriber a Subscription instance,
-    /// which it uses to demand elements from the publisher, and to optionally cancel the subscription.
-    /// After the subscriber makes an initial demand,
-    /// the publisher calls receive(_:), possibly asynchronously, to deliver newly-published elements.
-    /// If the publisher stops publishing, it calls receive(completion:), using a parameter of type Subscribers.Completion to indicate whether publishing completes normally or with an error.
+    /*:
+     Subscriber和Publisher之间产生联系？
+     
+     通过Publisher调用`subscribe(_:)`，传递一个Subscriber给到这个方法，
+     然后Publisher内部会调用Subscriber的`receive(subscription:)`方法，
+     传递一个Subscription实例，Subscriber可以设定这个Subscription实例
+     来决定Publisher发送数据的次数限制。
+     
+     当用户产生了数据，Publisher会调用Subscriber的`receive(_:)`方法，
+     需要注意的是，有可能是`异步调用`，然后根据该方法的返回值决定是否要产生一个新的Publisher。
+     一旦Publisher停止发布，会调用Subscriber的`receive(completion:)`方法，
+     参数是一个`Completion`枚举，有可能是`完成`，也有可能有一个`错误`。
+     
+     原文
+     
+     You connect a subscriber to a publisher by calling the publisher’s subscribe(_:) method.
+     After making this call, the publisher invokes the subscriber’s receive(subscription:) method.
+     This gives the subscriber a Subscription instance,
+     which it uses to demand elements from the publisher, and to optionally cancel the subscription.
+     After the subscriber makes an initial demand,
+     the publisher calls receive(_:), possibly asynchronously, to deliver newly-published elements.
+     If the publisher stops publishing, it calls receive(completion:), using a parameter of type
+     Subscribers.Completion to indicate whether publishing completes normally or with an error.
+     */
 }
 
 example(of: "Dynamically adjusting demand") {
@@ -309,20 +320,20 @@ example(of: "Dynamically adjusting demand") {
         typealias Failure = Never
         
         func receive(subscription: Subscription) {
-            subscription.request(.max(2))
+            subscription.request(.unlimited)
         }
         
         /// 在前面我们知道，如果subscription在发送request的时候，设置了demand，
         /// 比如这里是.max(2)，那么只要`receive(_:)`方法返回.none，就可以实现只接收2次数据，
-        /// 但是如果想要动态的来决定接收数据的次数：有1的时候增加2次、有3的时候增加3次
+        /// 但是如果想要动态的来决定接收数据的次数：有1的时候增加2次、有3的时候增加1次
         /// 但是如果不返回.none，设置的次数限制是无效的
         func receive(_ input: Int) -> Subscribers.Demand {
             print("value \(input)")
             switch input {
             case 1:
                 return .max(2)/// 在原有次数上增加2次
-            case 3:
-                return .max(1)/// 在原有次数上增加1次
+//            case 3:
+//                return .max(1)/// 在原有次数上增加1次
             default:
                 return .none/// 当前限制次数
             }
@@ -337,7 +348,7 @@ example(of: "Dynamically adjusting demand") {
     
     let subject = PassthroughSubject<Int, Never>()
     /// 将创建的subscriber和publisher关联起来
-    subject.subscribe(mySubscriber)
+    subject.print().subscribe(mySubscriber)
     
     subject.send(1)
     subject.send(2)

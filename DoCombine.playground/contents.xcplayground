@@ -6,5 +6,7 @@
         <page name='FilteringOperators'/>
         <page name='CombiningOperators'/>
         <page name='SequenceOperators'/>
+        <page name='Networking'/>
+        <page name='Backpressure'/>
     </pages>
 </playground>
