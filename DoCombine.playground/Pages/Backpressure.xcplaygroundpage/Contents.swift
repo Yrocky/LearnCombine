@@ -61,6 +61,8 @@ aPublisher.send(completion: .finished)
  >
  > 当用户产生了数据，Publisher会调用Subscriber的`2️⃣receive(_:)`方法，需要注意的是，该方法有可能是`异步调用`，然后根据该方法的返回值决定是否要产生一个新的Publisher。一旦Publisher停止发布（发送一个Completion数据），就会调用Subscriber的`3️⃣receive(completion:)`方法，参数是一个`Completion`枚举，有可能是`完成`，也有可能有一个`错误`。
  
+ ![p-2-s](https://assets.alexandria.raywenderlich.com/books/comb/images/9f8c264464ac8f521e79ca6b467112bf760c8252e4f01777f9f5aff7ec4087d9/original.png)
+ 
  上面的解释中，依次涉及到了`Subscriber协议`中的三个方法。
  
  通过Publisher调用`subscribe`绑定Subscriber的时候，方法1️⃣会被调用，这个时候系统默认调用的应该是`subscription.request(.unlimited)`，所以上面会输出`request unlimited`。如果自定义的Subscriber需要限制接收数据的次数，可以返回对应的`Subscribers.Demand`。需要注意的是，如果返回了`.unlimited`，要有针对大量数据的处理策略，因为这很有可能会导致性能问题发生，也就是本章所说的`Backpressure`。

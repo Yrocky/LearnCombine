@@ -7,6 +7,11 @@
         <page name='CombiningOperators'/>
         <page name='SequenceOperators'/>
         <page name='Networking'/>
+        <page name='Debugging'/>
+        <page name='Timers'/>
         <page name='Backpressure'/>
+        <page name='TypeErasure'/>
+        <page name='CustomOperators'/>
+        <page name='PierceCombine'/>
     </pages>
 </playground>

@@ -286,6 +286,35 @@ example(of: "Subject") {
     subject.send("after completion")
 }
 
+example(of: "CurrentValueSubject") {
+    
+    /*:
+     不同于`PassthroughSubject`，
+     `CurrentValueSubject`会持有最新的数据，
+     外部可以通过`value`来读取。
+     */
+    let subject = CurrentValueSubject<Int, Never>(1)
+    
+    subject
+        .sink(receiveCompletion: {print("completion \($0)")},
+              receiveValue: {print("value \($0)")})
+        .store(in: &subscriptions)
+    print("current value \(subject.value)")
+    subject.send(2)
+    print("current value \(subject.value)")
+    
+    /*:
+     CurrentValueSubject还可以通过直接修改`value`来完成数据的分发，
+     不过仅限于分发数据，不可以分发completion，
+     比如下面的`subject.value = .finished`语句就会报错，
+     需要使用`send`来发送completion。
+     */
+    subject.value = 3
+    
+//    subject.value = .finished
+    subject.send(completion: .finished)
+}
+
 example(of: "Publisher&Subscriber") {
     /*:
      Subscriber和Publisher之间产生联系？
@@ -381,4 +410,7 @@ example(of: "对Subscriber隐藏Publisher的一些细节") {
     /// publisher现在仅仅是一个Publisher类型的对象，并不具备PassthroughSubject特有的方法
 }
 
+/*:
+ * [Swift Combine 入门导读](https://www.icodesign.me/posts/swift-combine/)
+ */
 //: [Next](@next)
