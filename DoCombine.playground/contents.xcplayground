@@ -10,7 +10,8 @@
         <page name='Debugging'/>
         <page name='Timers'/>
         <page name='Backpressure'/>
-        <page name='TypeErasure'/>
+        <page name='DemandBuffer'/>
+        <page name='OpaueTypes'/>
         <page name='CustomOperators'/>
         <page name='PierceCombine'/>
     </pages>

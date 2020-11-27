@@ -9,7 +9,7 @@ var subscriptions = Set<AnyCancellable>()
 
 /*:
  
- ## 一个引子
+ ## 引子
  
  在了解`Backpressure`之前，先看下Combine中是如何控制分发速率的，或者是分发数量。
  
@@ -111,7 +111,7 @@ dPublisher.send("four")
 /*:
  ## 如何应对Backpressure
  
- 产生`Backpressure`的情况总的来说是由于在设置了Buffer的情况下，生产速率远远大于消费速率，针对这样的问题，可以适当、适时的丢弃生产的数据，主要的手段有`节流`、`打包`两种。
+ 产生`Backpressure`的情况总的来说是由于生产速率远远大于消费速率，针对这样的问题，可以适当、适时的丢弃生产的数据，主要的手段有`节流`、`打包`两种。
 
  ### 节流
  
@@ -179,9 +179,11 @@ dPublisher.send("four")
      }
  });
  ```
- 还是上面`zip`的例子，如果要组合处理的两个Pubisher为：a和b，a分发的速率比b快很多，这时候由于要缓存a分发的数据会导致buffer越来越打，通过上面知道了一些解决方案。使用`throttle`可能并不合适，它会丢弃一些数据，使得数据不完整。其实要做的应该是告诉a，你需要放慢数据分发的速度，应该使用一种减缓`Backpressure`的方案来分发数据，对应的就是上面的`方法2️⃣`，以及上面RxJava实例的`onNext`方法。
+ 还是上面`zip`的例子，如果要组合处理的两个Pubisher为：a和b，a分发的速率比b快很多，这时候由于要缓存a分发的数据会导致buffer越来越大，通过上面我们知道了一些解决方案。使用`throttle`可能并不合适，它会丢弃一些数据，使得数据不完整。其实要做的应该是告诉a，你需要放慢数据分发的速度，应该使用一种减缓`Backpressure`的方案来分发数据，对应的就是上面的`方法2️⃣`，以及上面RxJava实例的`onNext`方法。
  
  这就是`Reactive pull`思想。从消费者（Subscriber）的角度为生产者（Publisher）创建一个主动的pull，相当于回调给生产者，这和以往的被动从生产者接收数据形成了鲜明的对比。
+ 
+ 至于Combine是如何实现这种逻辑的，我们会在接下来的章节中探讨。
  */
 
 /*:
@@ -190,7 +192,7 @@ dPublisher.send("four")
  
  * [RxJava-Backpressure](https://github.com/ReactiveX/RxJava/wiki/Backpressure)
  * [Backpressure & Flow Control](https://www.cnblogs.com/ShouWangYiXin/p/10326642.html)
- * [如何形象的描述反应式编程中的背压(Backpressure)机制？--扔物线回答](https://www.zhihu.com/question/49618581/answer/237078934)
+ * [如何形象的描述反应式编程中的背压(Backpressure)机制？--扔物线的回答](https://www.zhihu.com/question/49618581/answer/237078934)
 */
 
 //: [Next](@next)
