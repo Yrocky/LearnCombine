@@ -1,16 +1,12 @@
 import UIKit
 import Combine
 
-var str = "Hello, playground"
+var subscriptions = Set<AnyCancellable>()
 
-public func example(of description: String, action: () -> Void) {
-    print("\n--- Example of:", description, "---")
-    action()
-}
+var str = "Hello, playground"
 
 let center = NotificationCenter.default
 let noti = Notification.Name("something")
-var subscriptions = Set<AnyCancellable>()
 
 example(of: "Normal-Notification") {
     

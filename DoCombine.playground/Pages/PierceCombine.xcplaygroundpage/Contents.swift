@@ -16,7 +16,7 @@ var str = "Hello, playground"
  
  here we go！
  
- ## 从Publisher到Subscribe
+ ## 从Publisher到Subscriber
  
  
  ## Backpressure

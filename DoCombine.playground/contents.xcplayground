@@ -8,11 +8,16 @@
         <page name='SequenceOperators'/>
         <page name='Networking'/>
         <page name='Debugging'/>
+        <page name='KVO'/>
+        <page name='ResourceManagement'/>
+        <page name='Schedulers'/>
+        <page name='Subject'/>
         <page name='Timers'/>
         <page name='Backpressure'/>
         <page name='DemandBuffer'/>
         <page name='OpaueTypes'/>
         <page name='CustomOperators'/>
         <page name='PierceCombine'/>
+        <page name='TypeErased'/>
     </pages>
 </playground>
