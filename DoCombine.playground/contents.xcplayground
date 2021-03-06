@@ -19,5 +19,6 @@
         <page name='CustomOperators'/>
         <page name='PierceCombine'/>
         <page name='TypeErased'/>
+        <page name='FunctionBuilder'/>
     </pages>
 </playground>

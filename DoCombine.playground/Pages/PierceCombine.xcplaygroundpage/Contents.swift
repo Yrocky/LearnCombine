@@ -1,6 +1,7 @@
 //: [Previous](@previous)
 
 import Foundation
+import UIKit
 
 var str = "Hello, playground"
 
@@ -29,3 +30,109 @@ var str = "Hello, playground"
  * [CombineX](https://github.com/cx-org/CombineX)
  */
 //: [Next](@next)
+
+
+class Person {
+    
+    struct State {
+        var name: String?
+        var isOpenDetails = false
+    }
+    /*:
+     因为State是结构体，属于值变量，
+     只要他的属性有变动就等同于这个state属性有变动，
+     这时候就会调用render，重新渲染
+     */
+    var state = State() {
+        didSet { render() }
+    }
+    
+    func render() {
+        print("render...")
+    }
+}
+
+
+let me = Person()
+me.state.name = "rocky"
+me.state.isOpenDetails = true
+
+var state = Person.State()
+state.name = "Rocky"
+me.state = state
+
+class ModelY: ObservableObject {
+    
+    var color: String = "red"
+    
+    var money: Int = 0 {
+        didSet{ updateUI() }
+    }
+    
+    var address: String = "" {
+        didSet { updateUI() }
+    }
+    
+    @Published var host: String = ""
+    
+    func updateUI() {
+        objectWillChange.send()
+    }
+}
+
+let modelY = ModelY()
+
+modelY
+    .objectWillChange
+    .print("[ModelY]")
+    .sink {
+        print("modelY did change \($0)")
+    }
+
+//modelY.money = 34
+//modelY.address = "SH"
+//modelY.host = "rocky"
+modelY.color = "white"
+
+class ModelYView: UIView {
+    
+    var modelY = ModelY()
+    let modelYDesLabel = UILabel()
+    let modifColorButton = UIButton()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
+        modifColorButton.frame = CGRect(origin: .zero, size: CGSize(width: 80, height: 50))
+        modifColorButton.setTitle("color", for: .normal)
+        modifColorButton.addTarget(self, action: #selector(modifColor), for: .touchUpInside)
+        addSubview(modifColorButton)
+        
+        modelYDesLabel.frame = CGRect(origin: CGPoint(x: 0, y: 150), size: CGSize(width: 300, height: 50))
+        modelYDesLabel.text = "color:\(modelY.color)\n money:\(modelY.money)\n host:\(modelY.host)"
+        addSubview(modelYDesLabel)
+    }
+    
+    @objc func modifColor() {
+        modelY.color = "orange"
+        updateUI()
+    }
+    
+    @objc func modifMoney() {
+        modelY.money = 34
+        updateUI()
+    }
+    
+    func updateUI() {
+        modelYDesLabel.text = "color:\(modelY.color)\nmoney:\(modelY.money)"
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+let modelYView = ModelYView()
+modelYView.backgroundColor = .red
+modelYView.frame = CGRect(origin: .zero, size: CGSize(width: 300, height: 500))
+
